@@ -243,13 +243,14 @@ const LOCS = [
   {id:'H5',       label:'H5',        color:'#86efac', room:true},
   {id:'H6',       label:'H6',        color:'#67e8f9', room:true},
   {id:'H19',      label:'H19',       color:'#fde68a', room:true},
+  {id:'HTA',      label:'HTA',       color:'#5eead4', room:true},
   {id:'T-Aula',   label:'T-Aula',    color:'#a5b4fc', room:true, noVastaava:true},
   {id:'AMBreboa', label:'AMBreboa',  color:'#f9a8d4'},
   {id:'RH',       label:'RH (yksin)',color:'#f87171'},
   {id:'Muu',      label:'Muu…',      color:'#cbd5e1'},
 ];
 const locById = id => LOCS.find(l=>l.id===id);
-const SUFFIXES = { H2:['ane','elv','TRAU'], H3:['TRAU'], H4:['elv','ane2/knk'], H5:['elv'], RH:['ane2/knk'] };
+const SUFFIXES = { H2:['ane','elv','TRAU'], H3:['TRAU'], H4:['elv','ane2/knk'], H5:['elv'], HTA:['elv'], RH:['ane2/knk'] };
 
 function roleCode(seg){
   if(seg.loc==='AMBreboa') return 'AMBreboa';
@@ -266,7 +267,7 @@ function roleCode(seg){
 function roleColor(seg){ const l=locById(seg.loc); return l?l.color:'#cbd5e1'; }
 
 /* Roolikoodin tulkinta tekstistä (tuontia varten) */
-const ROOM_IDS=['H19','H2','H3','H4','H5','H6','T-AULA'];
+const ROOM_IDS=['HTA','H19','H2','H3','H4','H5','H6','T-AULA'];
 function canonLoc(u){ return u==='T-AULA'?'T-Aula':u; }
 function parseRole(str){
   const orig=(str||'').trim();
