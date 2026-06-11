@@ -127,6 +127,26 @@
   .statrow .grow{flex:1;}
   .statrow .meta{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; text-align:right;}
   .statrow .meta b{color:var(--text); font-size:14px;}
+
+  .s-section{margin:20px 2px 8px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; font-weight:700;}
+  .tilegrid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .tile{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px;}
+  .tile .v{font-size:17px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .tile .k{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:2px;}
+  .brow{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:7px;}
+  .brow .l1{display:flex; align-items:center; gap:8px;}
+  .brow .nm{font-weight:700; font-size:14px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .brow .mt{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .brow .mt b{color:var(--text);}
+  .bar{height:6px; border-radius:4px; background:var(--card2); overflow:hidden; margin-top:8px;}
+  .bar i{display:block; height:100%; border-radius:4px;}
+  .vchart{display:flex; gap:6px; align-items:stretch; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 10px 8px; height:120px;}
+  .vcol{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px; min-width:0;}
+  .vcol .db{width:100%; max-width:26px; background:var(--accent); border-radius:4px 4px 0 0; min-height:2px;}
+  .vcol .dl,.vcol .dv{font-size:9px; color:var(--muted); white-space:nowrap;}
+  .chipstat{display:inline-flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:8px 11px; font-size:13px; font-weight:600; margin:0 6px 6px 0;}
+  .chipstat b{color:var(--accent);}
   .okmsg{background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.35); color:var(--good);
     border-radius:12px; padding:11px 12px; font-size:13px; margin-top:10px; display:none; white-space:pre-line;}
 </style>
@@ -375,24 +395,121 @@ function renderStats(){
   document.getElementById('scAll').classList.toggle('on', statsScope==='all');
   const src = statsScope==='month'
     ? shifts.filter(s=>{ const d=new Date(s.date+'T12:00'); return d.getFullYear()===viewYear && d.getMonth()===viewMonth; })
-    : shifts;
-  const agg={};
-  src.forEach(s=> s.segments.forEach(seg=>{
-    const code=roleCode(seg);
-    if(!agg[code]) agg[code]={min:0, ids:{}, color:roleColor(seg)};
-    agg[code].min+=dur(seg.start,seg.end);
-    agg[code].ids[s.id]=1;
-  }));
-  const rows=Object.keys(agg).map(code=>({code, min:agg[code].min, n:Object.keys(agg[code].ids).length, color:agg[code].color}))
-    .sort((a,b)=>b.min-a.min);
+    : shifts.slice();
   const el=document.getElementById('statsList');
-  if(!rows.length){ el.innerHTML='<div class="empty">Ei vuoroja.</div>'; return; }
-  el.innerHTML=rows.map(r=>`
-    <div class="statrow">
+  if(!src.length){ el.innerHTML='<div class="empty">Ei vuoroja.</div>'; return; }
+
+  /* --- kerää --- */
+  let totalMin=0, nightN=0, weN=0, weMin=0;
+  const byType={}, byLoc={}, byRole={}, dowMin=[0,0,0,0,0,0,0];
+  const vastSet={}, rhSet={}, sufSets={};
+  src.forEach(s=>{
+    const t=typeByCode(s.code);
+    let sMin=0;
+    s.segments.forEach(seg=>{
+      const m=dur(seg.start,seg.end); sMin+=m;
+      const code=roleCode(seg);
+      if(!byRole[code]) byRole[code]={min:0,ids:{},color:roleColor(seg)};
+      byRole[code].min+=m; byRole[code].ids[s.id]=1;
+      if(!byLoc[seg.loc]) byLoc[seg.loc]={min:0,ids:{}};
+      byLoc[seg.loc].min+=m; byLoc[seg.loc].ids[s.id]=1;
+      if(seg.vastaava) vastSet[s.id]=1;
+      if(seg.rh||seg.loc==='RH') rhSet[s.id]=1;
+      if(seg.suffix){ if(!sufSets[seg.suffix]) sufSets[seg.suffix]={}; sufSets[seg.suffix][s.id]=1; }
+    });
+    totalMin+=sMin;
+    if(!byType[s.code]) byType[s.code]={min:0,n:0};
+    byType[s.code].min+=sMin; byType[s.code].n++;
+    const d=new Date(s.date+'T12:00'); dowMin[(d.getDay()+6)%7]+=sMin;
+    if(t&&t.overnight) nightN++;
+    if(isWeekend(s.date)){ weN++; weMin+=sMin; }
+  });
+  /* pisin työputki (peräkkäiset päivät) */
+  const days=[...new Set(src.map(s=>s.date))].sort();
+  let streak=1, best=days.length?1:0;
+  for(let i=1;i<days.length;i++){
+    if((new Date(days[i]+'T12:00')-new Date(days[i-1]+'T12:00'))===86400000){ streak++; if(streak>best)best=streak; }
+    else streak=1;
+  }
+  const pct=m=>totalMin?Math.round(m/totalMin*100):0;
+  const cnt=o=>Object.keys(o).length;
+  const tile=(v,k)=>`<div class="tile"><div class="v">${v}</div><div class="k">${k}</div></div>`;
+
+  /* --- rakenna --- */
+  let h='<div class="tilegrid">'
+    + tile(src.length,'Vuoroa') + tile(fmtH(totalMin),'Tunteja') + tile(fmtH(totalMin/src.length),'Ø vuoro')
+    + tile(nightN,'Yövuoroa') + tile(weN,'Vkl-vuoroa') + tile(best+' pv','Pisin putki')
+    + '</div>';
+
+  /* vuorotyypit */
+  const tRows=Object.keys(byType).map(c=>Object.assign({c},byType[c])).sort((a,b)=>b.min-a.min);
+  const maxT=Math.max.apply(null,tRows.map(r=>r.min));
+  h+='<div class="s-section">Vuorotyypit</div>';
+  tRows.forEach(r=>{
+    const t=typeByCode(r.c);
+    h+=`<div class="brow"><div class="l1">
+      <span class="codepill" style="background:${t.color}">${r.c}</span>
+      <span class="nm">${t.name}</span>
+      <span class="mt"><b>${r.n}</b> kpl · <b>${fmtH(r.min)}</b> · ${pct(r.min)} %</span></div>
+      <div class="bar"><i style="width:${Math.max(3,Math.round(r.min/maxT*100))}%;background:${t.color}"></i></div></div>`;
+  });
+
+  /* sijoitukset */
+  const lRows=Object.keys(byLoc).map(id=>({id,min:byLoc[id].min,n:cnt(byLoc[id].ids)})).sort((a,b)=>b.min-a.min);
+  const maxL=Math.max.apply(null,lRows.map(r=>r.min));
+  h+='<div class="s-section">Sijoitukset</div>';
+  lRows.forEach(r=>{
+    const l=locById(r.id), col=l?l.color:'#cbd5e1', nm=r.id==='Muu'?'Muu':r.id;
+    h+=`<div class="brow"><div class="l1">
+      <span class="codepill" style="background:${col}">${esc(nm)}</span>
+      <span class="nm"></span>
+      <span class="mt"><b>${r.n}</b> vuoroa · <b>${fmtH(r.min)}</b> · ${pct(r.min)} %</span></div>
+      <div class="bar"><i style="width:${Math.max(3,Math.round(r.min/maxL*100))}%;background:${col}"></i></div></div>`;
+  });
+
+  /* tarkat sijoituskoodit */
+  const rRows=Object.keys(byRole).map(code=>({code,min:byRole[code].min,n:cnt(byRole[code].ids),color:byRole[code].color})).sort((a,b)=>b.min-a.min);
+  const maxR=Math.max.apply(null,rRows.map(r=>r.min));
+  h+='<div class="s-section">Sijoituskoodit</div>';
+  rRows.forEach(r=>{
+    h+=`<div class="brow"><div class="l1">
       <span class="codepill" style="background:${r.color}">${esc(r.code)}</span>
-      <span class="grow"></span>
-      <span class="meta"><b>${r.n}</b> vuoroa · <b>${fmtH(r.min)}</b></span>
-    </div>`).join('');
+      <span class="nm"></span>
+      <span class="mt"><b>${r.n}</b> vuoroa · <b>${fmtH(r.min)}</b> · ${pct(r.min)} %</span></div>
+      <div class="bar"><i style="width:${Math.max(3,Math.round(r.min/maxR*100))}%;background:${r.color}"></i></div></div>`;
+  });
+
+  /* erikoisroolit & lisät */
+  const chips=[];
+  if(cnt(vastSet)) chips.push(['Vastaava ( )',cnt(vastSet)]);
+  if(cnt(rhSet)) chips.push(['RH',cnt(rhSet)]);
+  Object.keys(sufSets).sort().forEach(sf=>chips.push([sf,cnt(sufSets[sf])]));
+  if(chips.length){
+    h+='<div class="s-section">Erikoisroolit & lisät</div><div>'
+      + chips.map(c=>`<span class="chipstat">${esc(c[0])} <b>×${c[1]}</b></span>`).join('')+'</div>';
+  }
+  if(weMin) h+=`<div class="hint" style="margin-top:4px;">Viikonlopputunteja ${fmtH(weMin)} (${pct(weMin)} % kaikista).</div>`;
+
+  /* viikonpäivät */
+  const maxD=Math.max.apply(null,dowMin.concat([1]));
+  const DL=['Ma','Ti','Ke','To','Pe','La','Su'];
+  h+='<div class="s-section">Tunnit viikonpäivittäin</div><div class="vchart">'
+    + dowMin.map((m,i)=>`<div class="vcol"><span class="dv">${m?Math.round(m/60):''}</span><span class="db" style="height:${Math.round(m/maxD*72)}px"></span><span class="dl">${DL[i]}</span></div>`).join('')
+    + '</div>';
+
+  /* kuukausitrendi koko historiasta */
+  if(statsScope==='all'){
+    const byM={};
+    src.forEach(s=>{ const k=s.date.slice(0,7); byM[k]=(byM[k]||0)+s.segments.reduce((a,x)=>a+dur(x.start,x.end),0); });
+    const keys=Object.keys(byM).sort().slice(-12);
+    if(keys.length>1){
+      const maxM=Math.max.apply(null,keys.map(k=>byM[k]));
+      h+='<div class="s-section">Tunnit kuukausittain</div><div class="vchart">'
+        + keys.map(k=>`<div class="vcol"><span class="dv">${Math.round(byM[k]/60)}</span><span class="db" style="height:${Math.round(byM[k]/maxM*72)}px;background:var(--good)"></span><span class="dl">${parseInt(k.slice(5,7))}/${k.slice(2,4)}</span></div>`).join('')
+        + '</div>';
+    }
+  }
+  el.innerHTML=h;
 }
 document.getElementById('stRoles').onclick=()=>{ renderStats(); document.getElementById('statsSheet').classList.add('open'); };
 document.getElementById('scMonth').onclick=()=>{ statsScope='month'; renderStats(); };
