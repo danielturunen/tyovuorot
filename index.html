@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Työvuorot">
+<meta name="theme-color" content="#0b1020">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230b1020'/%3E%3Ctext x='90' y='122' font-size='95' text-anchor='middle' fill='%234f8cff' font-family='Arial' font-weight='bold'%3ET%3C/text%3E%3C/svg%3E">
+<title>Työvuorot</title>
+<style>
+  :root{
+    --bg:#0b1020; --bg2:#121830; --card:#171f3d; --card2:#1e284a;
+    --line:#2a3666; --text:#eef2ff; --muted:#9aa6d4; --accent:#4f8cff;
+    --good:#34d399; --warn:#fbbf24; --danger:#f87171; --r:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:linear-gradient(180deg,var(--bg),#080c1a 60%); color:var(--text);
+    min-height:100vh; padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:580px; margin:0 auto; padding:14px 14px 120px;}
+  header{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 2px 14px;}
+  header h1{font-size:22px; margin:0; letter-spacing:.3px;}
+  .iconbtn{background:var(--card); border:1px solid var(--line); color:var(--text);
+    width:42px; height:42px; border-radius:12px; font-size:19px; display:grid; place-items:center;}
+  .iconbtn:active{transform:scale(.94);}
+
+  .monthbar{display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:8px; margin-bottom:12px;}
+  .monthbar .m{font-weight:700; font-size:16px; text-transform:capitalize;}
+  .nav{background:var(--card2); border:1px solid var(--line); color:var(--text);
+    width:38px; height:38px; border-radius:11px; font-size:18px;}
+  .nav:active{transform:scale(.94);}
+
+  .stats{display:flex; gap:8px; margin-bottom:14px;}
+  .stat{flex:1; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 12px;}
+  .stat .num{font-size:20px; font-weight:800;}
+  .stat .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
+  .stat.tap:active{background:var(--card2);}
+
+  .day{margin-bottom:10px;}
+  .daylabel{font-size:12px; color:var(--muted); margin:14px 4px 6px; text-transform:capitalize; font-weight:600;}
+  .shift{display:flex; gap:12px; align-items:stretch; background:var(--card); border:1px solid var(--line);
+    border-radius:var(--r); padding:12px; margin-bottom:8px; position:relative; overflow:hidden;}
+  .shift:active{background:var(--card2);}
+  .badge{min-width:46px; border-radius:12px; display:grid; place-items:center; font-weight:800; color:#06122b; padding:6px 4px;}
+  .badge .code{font-size:22px; line-height:1;}
+  .shift .body{flex:1; min-width:0;}
+  .shift .name{font-weight:700; font-size:15px;}
+  .shift .time{color:var(--muted); font-size:13px; margin-top:2px;}
+  .segs{margin-top:8px; display:flex; flex-direction:column; gap:5px;}
+  .seg{display:flex; align-items:center; gap:8px; font-size:13px;}
+  .seg .dot{width:10px; height:10px; border-radius:50%; flex:none;}
+  .seg .st{color:var(--muted); font-variant-numeric:tabular-nums; min-width:92px;}
+  .seg .rc{font-weight:700;}
+  .empty{text-align:center; color:var(--muted); padding:40px 20px; line-height:1.6;}
+  .empty .big{font-size:40px; margin-bottom:8px;}
+
+  .fab{position:fixed; right:max(18px,env(safe-area-inset-right)); bottom:max(22px,env(safe-area-inset-bottom));
+    width:62px; height:62px; border-radius:50%; background:var(--accent); color:#fff; border:none;
+    font-size:34px; box-shadow:0 8px 24px rgba(79,140,255,.45); display:grid; place-items:center; z-index:20;}
+  .fab:active{transform:scale(.92);}
+
+  .sheet{position:fixed; inset:0; background:rgba(4,7,18,.6); backdrop-filter:blur(4px); z-index:30; display:none;
+    align-items:flex-end; justify-content:center;}
+  .sheet.open{display:flex;}
+  .panel{background:var(--bg2); width:100%; max-width:580px; max-height:94vh; overflow-y:auto;
+    border-radius:22px 22px 0 0; border:1px solid var(--line); border-bottom:none;
+    padding:10px 16px calc(24px + env(safe-area-inset-bottom)); animation:up .25s ease;}
+  @keyframes up{from{transform:translateY(40px); opacity:.6;} to{transform:translateY(0); opacity:1;}}
+  .grab{width:40px; height:5px; border-radius:5px; background:var(--line); margin:6px auto 12px;}
+  .panel h2{margin:4px 0 14px; font-size:19px;}
+  label.fl{display:block; font-size:12px; color:var(--muted); margin:14px 0 6px; text-transform:uppercase; letter-spacing:.5px;}
+  input[type=date],input[type=time],input[type=text],input[type=file]{width:100%; background:var(--card); border:1px solid var(--line);
+    color:var(--text); border-radius:12px; padding:13px 12px; font-size:16px; font-family:inherit; min-height:48px;}
+  textarea{width:100%; background:var(--card); border:1px solid var(--line); color:var(--text); border-radius:12px;
+    padding:12px; font-size:13px; font-family:ui-monospace,Menlo,Consolas,monospace; min-height:130px; resize:vertical;}
+
+  .typegrid{display:grid; grid-template-columns:repeat(5,1fr); gap:7px;}
+  .typebtn{background:var(--card); border:1px solid var(--line); color:var(--text); border-radius:12px;
+    padding:9px 2px; font-weight:800; font-size:18px; display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .typebtn small{font-size:9px; font-weight:600; color:var(--muted);}
+  .typebtn.sel{border-color:var(--accent); box-shadow:0 0 0 2px rgba(79,140,255,.4) inset;}
+  .typebtn:active{transform:scale(.95);}
+
+  .seglabel{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:16px 0 8px;}
+  .segedit{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px;}
+  .segedit .top{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .segedit .top .ttl{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; display:flex; align-items:center; gap:8px;}
+  .codepill{font-weight:800; color:#06122b; padding:3px 10px; border-radius:8px; font-size:14px;}
+  .delseg{background:none; border:none; color:var(--danger); font-size:13px; font-weight:600;}
+  .timepair{display:flex; gap:8px; align-items:center; margin:8px 0 4px;}
+  .timepair input{flex:1;}
+  .timepair .ar{color:var(--muted);}
+  .timepair .dh{color:var(--muted); font-size:12px; min-width:48px; text-align:right;}
+
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .chip{background:var(--card2); border:1px solid var(--line); color:var(--text); border-radius:10px;
+    padding:8px 11px; font-size:14px; font-weight:600;}
+  .chip.sel{border-color:transparent; color:#06122b;}
+  .chip:active{transform:scale(.95);}
+  .miniL{font-size:11px; color:var(--muted); margin:10px 0 0; text-transform:uppercase; letter-spacing:.5px;}
+  .toggles{display:flex; gap:8px; margin-top:8px;}
+  .tg{flex:1; background:var(--card2); border:1px solid var(--line); color:var(--muted); border-radius:10px;
+    padding:10px; font-size:14px; font-weight:700; text-align:center;}
+  .tg.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .tg:active{transform:scale(.97);}
+
+  .btn{display:block; width:100%; border:none; border-radius:14px; padding:15px; font-size:16px; font-weight:700; margin-top:10px; font-family:inherit;}
+  .btn.primary{background:var(--accent); color:#fff;}
+  .btn.ghost{background:var(--card); color:var(--text); border:1px solid var(--line);}
+  .btn.danger{background:rgba(248,113,113,.12); color:var(--danger); border:1px solid rgba(248,113,113,.3);}
+  .btn:active{transform:scale(.98);}
+  .addseg{background:var(--card2); border:1px dashed var(--line); color:var(--accent); border-radius:12px; padding:12px; width:100%; font-weight:700; font-size:14px;}
+  .hint{font-size:12px; color:var(--muted); line-height:1.6; margin-top:10px;}
+  .hint code{background:var(--card); padding:1px 5px; border-radius:5px; font-size:11px;}
+
+  .scopebar{display:flex; gap:8px; margin-bottom:12px;}
+  .scope{flex:1; background:var(--card); border:1px solid var(--line); color:var(--muted); border-radius:11px; padding:10px; font-weight:700; font-size:14px;}
+  .scope.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .statrow{display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:11px 12px; margin-bottom:7px;}
+  .statrow .codepill{font-size:13px;}
+  .statrow .grow{flex:1;}
+  .statrow .meta{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; text-align:right;}
+  .statrow .meta b{color:var(--text); font-size:14px;}
+  .okmsg{background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.35); color:var(--good);
+    border-radius:12px; padding:11px 12px; font-size:13px; margin-top:10px; display:none; white-space:pre-line;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Työvuorot</h1>
+    <div style="display:flex; gap:8px;">
+      <button class="iconbtn" id="importBtn" title="Tuo / palauta">⤒</button>
+      <button class="iconbtn" id="exportBtn" title="Varmuuskopio">⤓</button>
+    </div>
+  </header>
+
+  <div class="monthbar">
+    <button class="nav" id="prevM">‹</button>
+    <div class="m" id="monthLabel"></div>
+    <button class="nav" id="nextM">›</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="stCount">0</div><div class="lbl">Vuoroa</div></div>
+    <div class="stat"><div class="num" id="stHours">0 h</div><div class="lbl">Tunteja</div></div>
+    <div class="stat tap" id="stRoles"><div class="num">Σ</div><div class="lbl">Roolit →</div></div>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<button class="fab" id="addBtn">+</button>
+
+<!-- Vuoron muokkaus -->
+<div class="sheet" id="shiftSheet">
+  <div class="panel">
+    <div class="grab"></div>
+    <h2 id="sheetTitle">Lisää vuoro</h2>
+
+    <label class="fl">Päivämäärä</label>
+    <input type="date" id="fDate">
+
+    <label class="fl">Vuorotyyppi</label>
+    <div class="typegrid" id="typeGrid"></div>
+
+    <div class="seglabel">Osiot / roolit</div>
+    <div id="segContainer"></div>
+    <button class="addseg" id="addSegBtn">+ Jaa vuoro / lisää osio</button>
+
+    <button class="btn primary" id="saveShift">Tallenna</button>
+    <button class="btn danger" id="deleteShift" style="display:none;">Poista vuoro</button>
+    <button class="btn ghost" id="cancelShift">Peruuta</button>
+  </div>
+</div>
+
+<!-- Roolitilastot -->
+<div class="sheet" id="statsSheet">
+  <div class="panel">
+    <div class="grab"></div>
+    <h2>Roolitilastot</h2>
+    <div class="scopebar">
+      <button class="scope on" id="scMonth">Tämä kuukausi</button>
+      <button class="scope" id="scAll">Kaikki</button>
+    </div>
+    <div id="statsList"></div>
+    <button class="btn ghost" id="closeStats">Sulje</button>
+  </div>
+</div>
+
+<!-- Tuo / palauta -->
+<div class="sheet" id="importSheet">
+  <div class="panel">
+    <div class="grab"></div>
+    <h2>Tuo / palauta</h2>
+
+    <label class="fl">Palauta varmuuskopiosta (JSON-tiedosto)</label>
+    <input type="file" id="impFile" accept=".json,application/json,text/plain">
+
+    <label class="fl">Tai liitä vuorokoodi / varmuuskopion sisältö</label>
+    <textarea id="impText" placeholder="11.6.2026 C 07:15-14:30 H2; 14:30-19:45 RH/H3&#10;12.6.2026 Y (H3)&#10;13.6.2026 A H2elv"></textarea>
+    <button class="btn primary" id="impGo">Tuo</button>
+    <div class="okmsg" id="impMsg"></div>
+
+    <p class="hint">
+      Rivimuoto: <code>pp.kk.vvvv VUOROKOODI</code> ja perään valinnaisesti osiot, esim.<br>
+      <code>11.6.2026 C 07:15-14:30 H2; 14:30-19:45 RH/H3</code><br>
+      Rooli voi olla esim. <code>H2</code>, <code>(H2)</code>, <code>H2elv</code>, <code>H2/AMB</code>, <code>H3/TRAU</code>, <code>RH/H3</code>, <code>RH/T-Aula</code>, <code>AMBreboa</code>, <code>H4ane2/knk</code>, <code>RH</code>.
+      Jos rooli puuttuu, vuoro merkitään <code>?</code>-roolilla ja voit täydentää sen myöhemmin.
+      Jos samalle päivälle on jo vuoro, tuonti korvaa sen.
+    </p>
+    <button class="btn ghost" id="closeImport">Sulje</button>
+  </div>
+</div>
+
+<script>
+/* ---------- Vuorotyypit ---------- */
+const SHIFT_TYPES = [
+  {code:'A', name:'Aamuvuoro',        start:'07:15', end:'15:00', color:'#fcd34d'},
+  {code:'D', name:'Välivuoro',        start:'10:00', end:'18:00', color:'#86efac'},
+  {code:'I', name:'Iltavuoro',        start:'13:30', end:'21:30', color:'#fca5a5', we:{code:'i', start:'14:30', end:'21:30'}},
+  {code:'Y', name:'Yövuoro',          start:'21:00', end:'07:30', color:'#a5b4fc', overnight:true},
+  {code:'d', name:'HTA Välivuoro',    start:'09:00', end:'16:00', color:'#67e8f9'},
+  {code:'J', name:'HTA Iltavuoro',    start:'15:45', end:'23:00', color:'#f0abfc', we:{code:'j', start:'15:15', end:'23:00'}},
+  {code:'Ö', name:'Poikkeava yövuoro',start:'18:00', end:'02:00', color:'#c4b5fd', overnight:true},
+  {code:'C', name:'Pitkä aamuvuoro',  start:'07:15', end:'19:45', color:'#fdba74', long:true},
+  {code:'R', name:'Pitkä iltavuoro',  start:'09:30', end:'21:30', color:'#fb7185', long:true},
+  {code:'W', name:'Pitkä yövuoro',    start:'19:30', end:'07:30', color:'#818cf8', overnight:true, long:true},
+];
+const typeByCode = c => SHIFT_TYPES.find(t=>t.code===c) || SHIFT_TYPES.find(t=>t.we&&t.we.code===c);
+
+/* ---------- Roolit / sijainnit ---------- */
+const LOCS = [
+  {id:'H2',       label:'H2',        color:'#f0abfc', room:true},
+  {id:'H3',       label:'H3',        color:'#fca5a5', room:true},
+  {id:'H4',       label:'H4',        color:'#fdba74', room:true},
+  {id:'H5',       label:'H5',        color:'#86efac', room:true},
+  {id:'H6',       label:'H6',        color:'#67e8f9', room:true},
+  {id:'H19',      label:'H19',       color:'#fde68a', room:true},
+  {id:'T-Aula',   label:'T-Aula',    color:'#a5b4fc', room:true, noVastaava:true},
+  {id:'AMBreboa', label:'AMBreboa',  color:'#f9a8d4'},
+  {id:'ane2/knk', label:'ane2/knk',  color:'#fbbf24', rhOk:true},
+  {id:'RH',       label:'RH (yksin)',color:'#f87171'},
+  {id:'Muu',      label:'Muu…',      color:'#cbd5e1'},
+];
+const locById = id => LOCS.find(l=>l.id===id);
+const SUFFIXES = { H2:['ane','elv','AMB','TRAU'], H3:['TRAU'], H4:['elv','ane2/knk'], H5:['elv'] };
+
+function roleCode(seg){
+  if(seg.loc==='AMBreboa') return 'AMBreboa';
+  if(seg.loc==='RH') return 'RH';
+  if(seg.loc==='ane2/knk') return (seg.rh?'RH/':'')+'ane2/knk';
+  if(seg.loc==='Muu') return (seg.custom||'?');
+  let core = seg.loc;
+  const l=locById(seg.loc);
+  if(seg.vastaava && l && !l.noVastaava) core='('+seg.loc+')';
+  if(seg.suffix==='ane'||seg.suffix==='elv'||seg.suffix==='ane2/knk') core+=seg.suffix;
+  else if(seg.suffix==='AMB'||seg.suffix==='TRAU') core+='/'+seg.suffix;
+  if(seg.rh) core='RH/'+core;
+  return core;
+}
+function roleColor(seg){ const l=locById(seg.loc); return l?l.color:'#cbd5e1'; }
+
+/* Roolikoodin tulkinta tekstistä (tuontia varten) */
+const ROOM_IDS=['H19','H2','H3','H4','H5','H6','T-AULA'];
+function canonLoc(u){ return u==='T-AULA'?'T-Aula':u; }
+function parseRole(str){
+  const orig=(str||'').trim();
+  const muu = txt=>({loc:'Muu',vastaava:false,suffix:'',rh:false,custom:txt});
+  if(!orig) return muu('?');
+  let s=orig, rh=false;
+  if(/^RH$/i.test(s)) return {loc:'RH',vastaava:false,suffix:'',rh:false,custom:''};
+  if(/^RH\//i.test(s)){ rh=true; s=s.slice(3).trim(); }
+  if(/^AMBREBOA$/i.test(s)) return {loc:'AMBreboa',vastaava:false,suffix:'',rh:false,custom:''};
+  if(/^ANE2\/KNK$/i.test(s)) return {loc:'ane2/knk',vastaava:false,suffix:'',rh:rh,custom:''};
+  let vast=false, base=null, rest='';
+  const pm=s.match(/^\(([^)]+)\)(.*)$/);
+  if(pm){
+    const u=pm[1].trim().toUpperCase();
+    const hit=ROOM_IDS.find(r=>r===u);
+    if(!hit) return muu(orig);
+    vast=true; base=canonLoc(hit); rest=pm[2];
+  }else{
+    const U=s.toUpperCase();
+    const hit=ROOM_IDS.find(r=>U.startsWith(r));
+    if(!hit) return muu(orig);
+    base=canonLoc(hit); rest=s.slice(hit.length);
+  }
+  rest=rest.trim();
+  let suffix='';
+  if(rest===''){}
+  else if(/^ane2\/knk$/i.test(rest)) suffix='ane2/knk';
+  else if(/^ane$/i.test(rest)) suffix='ane';
+  else if(/^elv$/i.test(rest)) suffix='elv';
+  else if(/^\/?amb$/i.test(rest)) suffix='AMB';
+  else if(/^\/?trau$/i.test(rest)) suffix='TRAU';
+  else return muu(orig);
+  if(base==='T-Aula') vast=false;
+  return {loc:base,vastaava:vast,suffix:suffix,rh:rh,custom:''};
+}
+
+/* ---------- Tallennus ---------- */
+const LS_SHIFTS='tv_shifts2';
+let shifts = JSON.parse(localStorage.getItem(LS_SHIFTS)||'[]');
+function saveShifts(){ localStorage.setItem(LS_SHIFTS, JSON.stringify(shifts)); }
+function rid(){ return Math.random().toString(36).slice(2,9); }
+
+/* ---------- Apurit ---------- */
+const MONTHS=['tammikuu','helmikuu','maaliskuu','huhtikuu','toukokuu','kesäkuu','heinäkuu','elokuu','syyskuu','lokakuu','marraskuu','joulukuu'];
+const DAYS=['sunnuntai','maanantai','tiistai','keskiviikko','torstai','perjantai','lauantai'];
+function isWeekend(dateStr){ const g=new Date(dateStr+'T12:00').getDay(); return g===0||g===6; }
+function toMin(t){ const p=t.split(':').map(Number); return p[0]*60+p[1]; }
+function dur(s,e){ let d=toMin(e)-toMin(s); if(d<=0) d+=1440; return d; }
+function fmtH(min){ return (Math.round(min/60*100)/100).toString().replace('.',',')+' h'; }
+function ymd(d){ return d.toISOString().slice(0,10); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pad2(n){ return ('0'+n).slice(-2); }
+function normTime(t){ t=t.replace('.',':'); const p=t.split(':'); return pad2(p[0])+':'+p[1]; }
+
+let viewYear, viewMonth;
+(function(){ const n=new Date(); viewYear=n.getFullYear(); viewMonth=n.getMonth(); })();
+
+/* ---------- Lista ---------- */
+function render(){
+  document.getElementById('monthLabel').textContent = MONTHS[viewMonth]+' '+viewYear;
+  const inMonth = shifts.filter(s=>{ const d=new Date(s.date+'T12:00'); return d.getFullYear()===viewYear && d.getMonth()===viewMonth; })
+                        .sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0);
+  let totalMin=0; inMonth.forEach(s=> s.segments.forEach(seg=> totalMin+=dur(seg.start,seg.end)));
+  document.getElementById('stCount').textContent = inMonth.length;
+  document.getElementById('stHours').textContent = fmtH(totalMin);
+
+  const list=document.getElementById('list');
+  if(!inMonth.length){ list.innerHTML='<div class="empty"><div class="big">📋</div>Ei vuoroja tässä kuussa.<br>Lisää + napista tai tuo vuorot ⤒ napista.</div>'; return; }
+  list.innerHTML='';
+  inMonth.forEach(s=>{
+    const t=typeByCode(s.code);
+    const d=new Date(s.date+'T12:00');
+    const dayLbl=DAYS[d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'.';
+    const codeShown=(s.weCode && isWeekend(s.date) && t.we)? t.we.code : s.code;
+    const totMin=s.segments.reduce((a,seg)=>a+dur(seg.start,seg.end),0);
+    const card=document.createElement('div'); card.className='shift';
+    card.innerHTML=`
+      <div class="badge" style="background:${t.color}"><span class="code">${codeShown}</span></div>
+      <div class="body">
+        <div class="name">${t.name}</div>
+        <div class="time">${s.start}–${s.end} · ${fmtH(totMin)}</div>
+        <div class="segs">${s.segments.map(seg=>`
+          <div class="seg"><span class="dot" style="background:${roleColor(seg)}"></span>
+            <span class="st">${seg.start}–${seg.end}</span>
+            <span class="rc">${esc(roleCode(seg))}</span></div>`).join('')}</div>
+      </div>`;
+    card.onclick=()=>openShift(s.id);
+    const wrap=document.createElement('div'); wrap.className='day';
+    wrap.innerHTML=`<div class="daylabel" style="margin-top:0">${dayLbl}</div>`;
+    wrap.appendChild(card); list.appendChild(wrap);
+  });
+}
+
+/* ---------- Roolitilastot ---------- */
+let statsScope='month';
+function renderStats(){
+  document.getElementById('scMonth').classList.toggle('on', statsScope==='month');
+  document.getElementById('scAll').classList.toggle('on', statsScope==='all');
+  const src = statsScope==='month'
+    ? shifts.filter(s=>{ const d=new Date(s.date+'T12:00'); return d.getFullYear()===viewYear && d.getMonth()===viewMonth; })
+    : shifts;
+  const agg={};
+  src.forEach(s=> s.segments.forEach(seg=>{
+    const code=roleCode(seg);
+    if(!agg[code]) agg[code]={min:0, ids:{}, color:roleColor(seg)};
+    agg[code].min+=dur(seg.start,seg.end);
+    agg[code].ids[s.id]=1;
+  }));
+  const rows=Object.keys(agg).map(code=>({code, min:agg[code].min, n:Object.keys(agg[code].ids).length, color:agg[code].color}))
+    .sort((a,b)=>b.min-a.min);
+  const el=document.getElementById('statsList');
+  if(!rows.length){ el.innerHTML='<div class="empty">Ei vuoroja.</div>'; return; }
+  el.innerHTML=rows.map(r=>`
+    <div class="statrow">
+      <span class="codepill" style="background:${r.color}">${esc(r.code)}</span>
+      <span class="grow"></span>
+      <span class="meta"><b>${r.n}</b> vuoroa · <b>${fmtH(r.min)}</b></span>
+    </div>`).join('');
+}
+document.getElementById('stRoles').onclick=()=>{ renderStats(); document.getElementById('statsSheet').classList.add('open'); };
+document.getElementById('scMonth').onclick=()=>{ statsScope='month'; renderStats(); };
+document.getElementById('scAll').onclick=()=>{ statsScope='all'; renderStats(); };
+document.getElementById('closeStats').onclick=()=>document.getElementById('statsSheet').classList.remove('open');
+
+/* ---------- Editori ---------- */
+let editingId=null, draft=null;
+
+function buildTypeGrid(){
+  const g=document.getElementById('typeGrid'); g.innerHTML='';
+  SHIFT_TYPES.forEach(t=>{
+    const we=(t.we && isWeekend(draft.date));
+    const b=document.createElement('button');
+    b.className='typebtn'+(draft.code===t.code?' sel':'');
+    b.innerHTML=`<span style="color:${t.color}">${we?t.we.code:t.code}</span><small>${we?t.we.start:t.start}</small>`;
+    b.onclick=()=>selectType(t.code); g.appendChild(b);
+  });
+}
+function selectType(code){
+  const t=typeByCode(code); draft.code=t.code;
+  let start=t.start,end=t.end;
+  if(t.we && isWeekend(draft.date)){ start=t.we.start; end=t.we.end; draft.weCode=true; } else draft.weCode=false;
+  const keep = draft.segments[0] || newSeg(start,end);
+  draft.segments=[Object.assign(newSeg(start,end), {loc:keep.loc,vastaava:keep.vastaava,suffix:keep.suffix,rh:keep.rh,custom:keep.custom})];
+  buildTypeGrid(); buildSegs(); syncMeta();
+}
+function newSeg(start,end){ return {start,end,loc:'H2',vastaava:false,suffix:'',rh:false,custom:''}; }
+function syncMeta(){ if(draft.segments.length){ draft.start=draft.segments[0].start; draft.end=draft.segments[draft.segments.length-1].end; } }
+
+function buildSegs(){
+  const c=document.getElementById('segContainer'); c.innerHTML='';
+  draft.segments.forEach((seg,i)=>{
+    const l=locById(seg.loc), room=l&&l.room, rhOk=l&&(l.room||l.rhOk);
+    const code=roleCode(seg);
+    const sufs=SUFFIXES[seg.loc]||[];
+    const box=document.createElement('div'); box.className='segedit';
+    box.innerHTML=`
+      <div class="top">
+        <span class="ttl">Osio ${i+1}
+          <span class="codepill" style="background:${roleColor(seg)}">${esc(code)}</span></span>
+        ${draft.segments.length>1?`<button class="delseg" data-i="${i}">Poista</button>`:''}
+      </div>
+      <div class="timepair">
+        <input type="time" class="sStart" data-i="${i}" value="${seg.start}">
+        <span class="ar">→</span>
+        <input type="time" class="sEnd" data-i="${i}" value="${seg.end}">
+        <span class="dh">${fmtH(dur(seg.start,seg.end))}</span>
+      </div>
+      <div class="miniL">Sijainti</div>
+      <div class="chips loc">${LOCS.map(o=>`<button class="chip ${seg.loc===o.id?'sel':''}" data-i="${i}" data-loc="${o.id}"
+          style="${seg.loc===o.id?`background:${o.color}`:''}">${o.label}</button>`).join('')}</div>
+      ${seg.loc==='Muu'?`<input type="text" class="cust" data-i="${i}" placeholder="Kirjoita rooli" value="${esc(seg.custom)}" style="margin-top:8px;">`:''}
+      ${rhOk?`
+        <div class="toggles">
+          ${room&&!l.noVastaava?`<button class="tg ${seg.vastaava?'on':''}" data-i="${i}" data-tg="vastaava">Vastaava ( )</button>`:''}
+          <button class="tg ${seg.rh?'on':''}" data-i="${i}" data-tg="rh">RH ruuhka</button>
+        </div>`:''}
+      ${room&&sufs.length?`<div class="miniL">Erikoisrooli</div>
+        <div class="chips suf">
+          <button class="chip ${seg.suffix===''?'sel':''}" data-i="${i}" data-suf="" style="${seg.suffix===''?'background:#9aa6d4':''}">—</button>
+          ${sufs.map(sf=>`<button class="chip ${seg.suffix===sf?'sel':''}" data-i="${i}" data-suf="${sf}"
+              style="${seg.suffix===sf?'background:#fbbf24':''}">${sf}</button>`).join('')}
+        </div>`:''}`;
+    c.appendChild(box);
+  });
+  const c2=document.getElementById('segContainer');
+  c2.querySelectorAll('.sStart').forEach(el=>el.onchange=e=>{ draft.segments[+e.target.dataset.i].start=e.target.value; syncMeta(); buildSegs(); });
+  c2.querySelectorAll('.sEnd').forEach(el=>el.onchange=e=>{ draft.segments[+e.target.dataset.i].end=e.target.value; syncMeta(); buildSegs(); });
+  c2.querySelectorAll('.delseg').forEach(el=>el.onclick=e=>{ draft.segments.splice(+e.target.dataset.i,1); syncMeta(); buildSegs(); });
+  c2.querySelectorAll('.chip[data-loc]').forEach(el=>el.onclick=e=>{
+    const i=+e.currentTarget.dataset.i, seg=draft.segments[i];
+    seg.loc=e.currentTarget.dataset.loc;
+    if(!(SUFFIXES[seg.loc]||[]).includes(seg.suffix)) seg.suffix='';
+    const l=locById(seg.loc);
+    if(!l||!(l.room||l.rhOk)){ seg.rh=false; }
+    if(!l||!l.room||l.noVastaava) seg.vastaava=false;
+    buildSegs();
+  });
+  c2.querySelectorAll('.chip[data-suf]').forEach(el=>el.onclick=e=>{ draft.segments[+e.currentTarget.dataset.i].suffix=e.currentTarget.dataset.suf; buildSegs(); });
+  c2.querySelectorAll('.tg').forEach(el=>el.onclick=e=>{ const i=+e.currentTarget.dataset.i, k=e.currentTarget.dataset.tg; draft.segments[i][k]=!draft.segments[i][k]; buildSegs(); });
+  c2.querySelectorAll('.cust').forEach(el=>el.oninput=e=>{ draft.segments[+e.target.dataset.i].custom=e.target.value;
+    e.target.closest('.segedit').querySelector('.codepill').textContent=e.target.value||'?'; });
+}
+function addSeg(){
+  const last=draft.segments[draft.segments.length-1];
+  const ns=newSeg(last.end, draft.end||last.end);
+  ns.loc=last.loc;
+  draft.segments.push(ns); syncMeta(); buildSegs();
+}
+
+function openShift(id){
+  editingId=id; draft=JSON.parse(JSON.stringify(shifts.find(x=>x.id===id)));
+  document.getElementById('sheetTitle').textContent='Muokkaa vuoroa';
+  document.getElementById('deleteShift').style.display='block';
+  document.getElementById('fDate').value=draft.date;
+  buildTypeGrid(); buildSegs();
+  document.getElementById('shiftSheet').classList.add('open');
+}
+function openNew(){
+  editingId=null; const today=ymd(new Date());
+  draft={date:today, code:'A', weCode:false, segments:[], start:'', end:''};
+  document.getElementById('sheetTitle').textContent='Lisää vuoro';
+  document.getElementById('deleteShift').style.display='none';
+  document.getElementById('fDate').value=today;
+  selectType('A');
+  document.getElementById('shiftSheet').classList.add('open');
+}
+function closeShift(){ document.getElementById('shiftSheet').classList.remove('open'); }
+
+document.getElementById('fDate').onchange=e=>{ draft.date=e.target.value; selectType(draft.code); };
+document.getElementById('addSegBtn').onclick=addSeg;
+document.getElementById('addBtn').onclick=openNew;
+document.getElementById('cancelShift').onclick=closeShift;
+document.getElementById('saveShift').onclick=()=>{
+  syncMeta();
+  for(const s of draft.segments){ if(s.loc==='Muu' && !s.custom.trim()){ alert('Kirjoita rooli "Muu"-osiolle tai valitse sijainti.'); return; } }
+  const rec={id:editingId||rid(), date:draft.date, code:draft.code, weCode:draft.weCode, start:draft.start, end:draft.end,
+    segments:draft.segments.map(s=>({start:s.start,end:s.end,loc:s.loc,vastaava:s.vastaava,suffix:s.suffix,rh:s.rh,custom:s.custom}))};
+  if(editingId){ shifts[shifts.findIndex(x=>x.id===editingId)]=rec; } else shifts.push(rec);
+  saveShifts(); closeShift();
+  const d=new Date(rec.date+'T12:00'); viewYear=d.getFullYear(); viewMonth=d.getMonth(); render();
+};
+document.getElementById('deleteShift').onclick=()=>{ if(confirm('Poistetaanko tämä vuoro?')){ shifts=shifts.filter(x=>x.id!==editingId); saveShifts(); closeShift(); render(); } };
+
+document.getElementById('prevM').onclick=()=>{ if(--viewMonth<0){viewMonth=11;viewYear--;} render(); };
+document.getElementById('nextM').onclick=()=>{ if(++viewMonth>11){viewMonth=0;viewYear++;} render(); };
+
+/* ---------- Vienti ---------- */
+document.getElementById('exportBtn').onclick=()=>{
+  const blob=new Blob([JSON.stringify({shifts,exported:new Date().toISOString()},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='tyovuorot-varmuuskopio.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+
+/* ---------- Tuonti ---------- */
+function migrateShift(s){
+  s.segments=(s.segments||[]).map(seg=>{
+    if(seg.loc) return seg;
+    return {start:seg.start,end:seg.end,loc:'Muu',vastaava:false,suffix:'',rh:false,custom:seg.custom||'?'};
+  });
+  return s;
+}
+function restoreJSON(obj){
+  if(!obj || !Array.isArray(obj.shifts)) throw new Error('bad');
+  if(!confirm('Korvataanko nykyiset vuorot varmuuskopiolla ('+obj.shifts.length+' vuoroa)?')) return null;
+  shifts=obj.shifts.map(migrateShift); saveShifts(); render();
+  return obj.shifts.length;
+}
+function importLines(text){
+  let added=0, replaced=0; const errors=[];
+  text.split(/\r?\n/).forEach((raw,idx)=>{
+    const line=raw.trim(); if(!line || line.startsWith('#')) return;
+    let date=null, rest=null, m;
+    if((m=line.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(.*)$/))){ date=m[3]+'-'+pad2(m[2])+'-'+pad2(m[1]); rest=m[4]; }
+    else if((m=line.match(/^(\d{4}-\d{2}-\d{2})\s+(.*)$/))){ date=m[1]; rest=m[2]; }
+    if(!date){ errors.push('Rivi '+(idx+1)+': päivämäärää ei tunnistettu'); return; }
+    const tm=rest.match(/^(\S+)\s*(.*)$/);
+    const t=tm?typeByCode(tm[1]):null;
+    if(!t){ errors.push('Rivi '+(idx+1)+': tuntematon vuorokoodi "'+(tm?tm[1]:'')+'"'); return; }
+    const we=t.we&&isWeekend(date);
+    const defStart=we?t.we.start:t.start, defEnd=we?t.we.end:t.end;
+    const segsTxt=(tm[2]||'').trim();
+    let segments=[];
+    if(!segsTxt){ segments=[Object.assign({start:defStart,end:defEnd},parseRole(''))]; }
+    else{
+      segsTxt.split(';').forEach(part=>{
+        part=part.trim(); if(!part) return;
+        const sm=part.match(/^(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})\s*(.*)$/);
+        if(sm) segments.push(Object.assign({start:normTime(sm[1]),end:normTime(sm[2])},parseRole(sm[3])));
+        else segments.push(Object.assign({start:defStart,end:defEnd},parseRole(part)));
+      });
+    }
+    if(!segments.length){ errors.push('Rivi '+(idx+1)+': ei osioita'); return; }
+    const rec={id:rid(),date,code:t.code,weCode:!!t.we,start:segments[0].start,end:segments[segments.length-1].end,segments};
+    const ex=shifts.findIndex(x=>x.date===date);
+    if(ex>=0){ rec.id=shifts[ex].id; shifts[ex]=rec; replaced++; } else { shifts.push(rec); added++; }
+  });
+  saveShifts(); render();
+  return {added,replaced,errors};
+}
+function showImpMsg(txt){ const el=document.getElementById('impMsg'); el.textContent=txt; el.style.display='block'; }
+
+document.getElementById('importBtn').onclick=()=>{ document.getElementById('impMsg').style.display='none'; document.getElementById('importSheet').classList.add('open'); };
+document.getElementById('closeImport').onclick=()=>document.getElementById('importSheet').classList.remove('open');
+document.getElementById('impFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+      const n=restoreJSON(JSON.parse(r.result));
+      if(n!==null) showImpMsg('Palautettu '+n+' vuoroa varmuuskopiosta.');
+    }catch(err){ showImpMsg('Tiedostoa ei voitu lukea — onko se varmuuskopio-JSON?'); } };
+  r.readAsText(f); e.target.value='';
+};
+document.getElementById('impGo').onclick=()=>{
+  const txt=document.getElementById('impText').value.trim();
+  if(!txt){ showImpMsg('Liitä ensin koodi tekstikenttään.'); return; }
+  if(txt.startsWith('{')){
+    try{ const n=restoreJSON(JSON.parse(txt)); if(n!==null) showImpMsg('Palautettu '+n+' vuoroa varmuuskopiosta.'); }
+    catch(err){ showImpMsg('JSON-sisältöä ei voitu lukea.'); }
+    return;
+  }
+  const res=importLines(txt);
+  let msg='Tuotu '+res.added+' uutta vuoroa'+(res.replaced?', korvattu '+res.replaced:'')+'.';
+  if(res.errors.length) msg+='\n'+res.errors.join('\n');
+  showImpMsg(msg);
+  if(res.added||res.replaced) document.getElementById('impText').value='';
+};
+
+document.querySelectorAll('.sheet').forEach(sh=>sh.addEventListener('click',e=>{ if(e.target===sh) sh.classList.remove('open'); }));
+
+render();
+</script>
+</body>
+</html>
