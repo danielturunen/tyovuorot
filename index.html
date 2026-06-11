@@ -245,17 +245,21 @@ const LOCS = [
   {id:'H19',      label:'H19',       color:'#fde68a', room:true},
   {id:'HTA',      label:'HTA',       color:'#5eead4', room:true},
   {id:'T-Aula',   label:'T-Aula',    color:'#a5b4fc', room:true, noVastaava:true},
-  {id:'AMBreboa', label:'AMBreboa',  color:'#f9a8d4'},
+  {id:'AMBreboa', label:'AMBreboa',  color:'#f9a8d4', rhOk:true},
   {id:'RH',       label:'RH (yksin)',color:'#f87171'},
-  {id:'Muu',      label:'Muu…',      color:'#cbd5e1'},
+  {id:'Muu',      label:'Muu…',      color:'#cbd5e1', rhOk:true},
 ];
 const locById = id => LOCS.find(l=>l.id===id);
-const SUFFIXES = { H2:['ane','elv','TRAU'], H3:['TRAU'], H4:['elv','ane2/knk'], H5:['elv'], HTA:['elv'], RH:['ane2/knk'] };
+const SUFFIXES = {
+  H2:['ane','elv','TRAU'], H3:['elv','TRAU'], H4:['elv','ane2/knk'], H5:['elv'],
+  H6:['elv'], H19:['elv'], HTA:['elv'], 'T-Aula':['elv'],
+  RH:['ane','ane2/knk','elv','TRAU','reboa']
+};
 
 function roleCode(seg){
-  if(seg.loc==='AMBreboa') return 'AMBreboa';
-  if(seg.loc==='RH') return seg.suffix==='ane2/knk' ? 'RH/ane2/knk' : 'RH';
-  if(seg.loc==='Muu') return (seg.custom||'?');
+  if(seg.loc==='AMBreboa') return (seg.rh?'RH/':'')+'AMBreboa';
+  if(seg.loc==='RH') return seg.suffix ? 'RH/'+seg.suffix : 'RH';
+  if(seg.loc==='Muu') return (seg.rh?'RH/':'')+(seg.custom||'?');
   let core = seg.loc;
   const l=locById(seg.loc);
   if(seg.vastaava && l && !l.noVastaava) core='('+seg.loc+')';
@@ -276,8 +280,11 @@ function parseRole(str){
   let s=orig, rh=false;
   if(/^RH$/i.test(s)) return {loc:'RH',vastaava:false,suffix:'',rh:false,custom:''};
   if(/^RH\//i.test(s)){ rh=true; s=s.slice(3).trim(); }
-  if(/^AMBREBOA$/i.test(s)) return {loc:'AMBreboa',vastaava:false,suffix:'',rh:false,custom:''};
-  if(/^ANE2\/KNK$/i.test(s)){ if(rh) return {loc:'RH',vastaava:false,suffix:'ane2/knk',rh:false,custom:''}; return muu(orig); }
+  if(/^AMBREBOA$/i.test(s)) return {loc:'AMBreboa',vastaava:false,suffix:'',rh:rh,custom:''};
+  if(rh){
+    const rm=s.match(/^(ane2\/knk|ane|elv|trau|reboa)$/i);
+    if(rm){ const sf=/^trau$/i.test(rm[1])?'TRAU':rm[1].toLowerCase(); return {loc:'RH',vastaava:false,suffix:sf,rh:false,custom:''}; }
+  }
   let vast=false, base=null, rest='';
   const pm=s.match(/^\(([^)]+)\)(.*)$/);
   if(pm){
