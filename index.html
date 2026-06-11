@@ -417,7 +417,12 @@ function selectType(code){
   let start=t.start,end=t.end;
   if(t.we && isWeekend(draft.date)){ start=t.we.start; end=t.we.end; draft.weCode=true; } else draft.weCode=false;
   const keep = draft.segments[0] || newSeg(start,end);
-  draft.segments=[Object.assign(newSeg(start,end), {loc:keep.loc,vastaava:keep.vastaava,suffix:keep.suffix,rh:keep.rh,custom:keep.custom})];
+  const first = Object.assign(newSeg(start,end), {loc:keep.loc,vastaava:keep.vastaava,suffix:keep.suffix,rh:keep.rh,custom:keep.custom});
+  // C- ja R-vuorot jaetaan oletuksena kahtia klo 14:30 (sijoitus vaihtuu yleensä silloin)
+  if(t.code==='C'||t.code==='R'){
+    first.end='14:30';
+    draft.segments=[first, Object.assign(newSeg('14:30',end), {loc:keep.loc})];
+  } else draft.segments=[first];
   buildTypeGrid(); buildSegs(); syncMeta();
 }
 function newSeg(start,end){ return {start,end,loc:'H2',vastaava:false,suffix:'',rh:false,custom:''}; }
@@ -557,7 +562,10 @@ function importLines(text){
     const defStart=we?t.we.start:t.start, defEnd=we?t.we.end:t.end;
     const segsTxt=(tm[2]||'').trim();
     let segments=[];
-    if(!segsTxt){ segments=[Object.assign({start:defStart,end:defEnd},parseRole(''))]; }
+    if(!segsTxt){
+      if(t.code==='C'||t.code==='R') segments=[Object.assign({start:defStart,end:'14:30'},parseRole('')), Object.assign({start:'14:30',end:defEnd},parseRole(''))];
+      else segments=[Object.assign({start:defStart,end:defEnd},parseRole(''))];
+    }
     else{
       segsTxt.split(';').forEach(part=>{
         part=part.trim(); if(!part) return;
