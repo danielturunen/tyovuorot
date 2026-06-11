@@ -245,17 +245,15 @@ const LOCS = [
   {id:'H19',      label:'H19',       color:'#fde68a', room:true},
   {id:'T-Aula',   label:'T-Aula',    color:'#a5b4fc', room:true, noVastaava:true},
   {id:'AMBreboa', label:'AMBreboa',  color:'#f9a8d4'},
-  {id:'ane2/knk', label:'ane2/knk',  color:'#fbbf24', rhOk:true},
   {id:'RH',       label:'RH (yksin)',color:'#f87171'},
   {id:'Muu',      label:'Muu…',      color:'#cbd5e1'},
 ];
 const locById = id => LOCS.find(l=>l.id===id);
-const SUFFIXES = { H2:['ane','elv','AMB','TRAU'], H3:['TRAU'], H4:['elv','ane2/knk'], H5:['elv'] };
+const SUFFIXES = { H2:['ane','elv','TRAU'], H3:['TRAU'], H4:['elv','ane2/knk'], H5:['elv'], RH:['ane2/knk'] };
 
 function roleCode(seg){
   if(seg.loc==='AMBreboa') return 'AMBreboa';
-  if(seg.loc==='RH') return 'RH';
-  if(seg.loc==='ane2/knk') return (seg.rh?'RH/':'')+'ane2/knk';
+  if(seg.loc==='RH') return seg.suffix==='ane2/knk' ? 'RH/ane2/knk' : 'RH';
   if(seg.loc==='Muu') return (seg.custom||'?');
   let core = seg.loc;
   const l=locById(seg.loc);
@@ -278,7 +276,7 @@ function parseRole(str){
   if(/^RH$/i.test(s)) return {loc:'RH',vastaava:false,suffix:'',rh:false,custom:''};
   if(/^RH\//i.test(s)){ rh=true; s=s.slice(3).trim(); }
   if(/^AMBREBOA$/i.test(s)) return {loc:'AMBreboa',vastaava:false,suffix:'',rh:false,custom:''};
-  if(/^ANE2\/KNK$/i.test(s)) return {loc:'ane2/knk',vastaava:false,suffix:'',rh:rh,custom:''};
+  if(/^ANE2\/KNK$/i.test(s)){ if(rh) return {loc:'RH',vastaava:false,suffix:'ane2/knk',rh:false,custom:''}; return muu(orig); }
   let vast=false, base=null, rest='';
   const pm=s.match(/^\(([^)]+)\)(.*)$/);
   if(pm){
@@ -445,7 +443,7 @@ function buildSegs(){
           ${room&&!l.noVastaava?`<button class="tg ${seg.vastaava?'on':''}" data-i="${i}" data-tg="vastaava">Vastaava ( )</button>`:''}
           <button class="tg ${seg.rh?'on':''}" data-i="${i}" data-tg="rh">RH ruuhka</button>
         </div>`:''}
-      ${room&&sufs.length?`<div class="miniL">Erikoisrooli</div>
+      ${sufs.length?`<div class="miniL">Erikoisrooli</div>
         <div class="chips suf">
           <button class="chip ${seg.suffix===''?'sel':''}" data-i="${i}" data-suf="" style="${seg.suffix===''?'background:#9aa6d4':''}">—</button>
           ${sufs.map(sf=>`<button class="chip ${seg.suffix===sf?'sel':''}" data-i="${i}" data-suf="${sf}"
