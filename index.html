@@ -393,11 +393,23 @@ let statsScope='month';
 function renderStats(){
   document.getElementById('scMonth').classList.toggle('on', statsScope==='month');
   document.getElementById('scAll').classList.toggle('on', statsScope==='all');
-  const src = statsScope==='month'
+  const src0 = statsScope==='month'
     ? shifts.filter(s=>{ const d=new Date(s.date+'T12:00'); return d.getFullYear()===viewYear && d.getMonth()===viewMonth; })
     : shifts.slice();
+  /* vain roolitetut mukaan: ?-osiot pois, kokonaan roolittamattomat vuorot ohitetaan */
+  const marked=seg=>!(seg.loc==='Muu' && (!seg.custom || seg.custom.trim()==='' || seg.custom.trim()==='?'));
+  const src=[]; let skipped=0;
+  src0.forEach(s=>{
+    const ms=s.segments.filter(marked);
+    if(ms.length) src.push(Object.assign({},s,{segments:ms})); else skipped++;
+  });
   const el=document.getElementById('statsList');
-  if(!src.length){ el.innerHTML='<div class="empty">Ei vuoroja.</div>'; return; }
+  if(!src.length){
+    el.innerHTML='<div class="empty">'+(skipped
+      ? skipped+' vuoroa odottaa roolimerkintää — tilastot lasketaan vain roolitetuista vuoroista.'
+      : 'Ei vuoroja.')+'</div>';
+    return;
+  }
 
   /* --- kerää --- */
   let totalMin=0, nightN=0, weN=0, weMin=0;
@@ -509,6 +521,7 @@ function renderStats(){
         + '</div>';
     }
   }
+  if(skipped) h+=`<div class="hint" style="margin-top:14px;">${skipped} roolittamatonta vuoroa jätetty pois tilastoista — merkkaa roolit niin ne lasketaan mukaan.</div>`;
   el.innerHTML=h;
 }
 document.getElementById('stRoles').onclick=()=>{ renderStats(); document.getElementById('statsSheet').classList.add('open'); };
